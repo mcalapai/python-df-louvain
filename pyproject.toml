@@ -7,7 +7,7 @@ requires = [
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "df_louvain"
+name = "df-louvain"
 version = "0.1.4"
 description = "Python wrapper for DF-Louvain C++: Fast Incrementally Expanding Approach for Community Detection on Dynamic Graphs"
 readme = "README.md"
