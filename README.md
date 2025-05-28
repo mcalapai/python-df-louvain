@@ -18,13 +18,6 @@ Based on the paper: *DF Louvain: Fast Incrementally Expanding Approach for Commu
 
 ### Installing Pre-compiled Wheels (Recommended)
 
-Pre-compiled wheels are the easiest way to install `df-louvain` as they do not require a C++ compiler or CMake on your system.
-
-**From PyPI (if available):**
-```bash
-pip install df-louvain
-```
-
 **From GitHub Releases:**
 If wheels are provided with GitHub releases for your platform and Python version, you can install a specific version directly:
 1.  Go to the [GitHub Releases page](https://github.com/mcalapai/python-df-louvain/releases).
