@@ -16,13 +16,14 @@ Based on the paper: *DF Louvain: Fast Incrementally Expanding Approach for Commu
 
 ## Installation
 
-### Installing Pre-compiled Wheels (Recommended)
+### Installing from PyPI
 
-**From PyPI:**
 Simply run:
 ```bash
 pip install df-louvain==0.1.4
 ```
+
+### Installing Pre-compiled Wheels
 
 **From GitHub Releases:**
 If wheels are provided with GitHub releases for your platform and Python version, you can install a specific version directly:
