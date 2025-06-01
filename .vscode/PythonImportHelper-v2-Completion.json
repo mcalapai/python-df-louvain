@@ -1,0 +1,65 @@
+[
+    {
+        "label": "os",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "os",
+        "description": "os",
+        "detail": "os",
+        "documentation": {}
+    },
+    {
+        "label": "generate_tree",
+        "kind": 2,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "def generate_tree(dir_path, prefix=\"\"):\n    \"\"\"\n    Generate an ASCII tree representation of the directory structure\n    under dir_path, skipping items in SKIP_DIRS and SKIP_FILES.\n    \"\"\"\n    entries = []\n    try:\n        entries = sorted(os.listdir(dir_path))\n    except PermissionError:\n        return \"\"",
+        "detail": "context_builder",
+        "documentation": {}
+    },
+    {
+        "label": "collate_python_scripts",
+        "kind": 2,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "def collate_python_scripts():\n    \"\"\"\n    Writes the project directory structure and all .py scripts (skipping\n    configured dirs/files) into a Markdown file.\n    \"\"\"\n    # Generate tree\n    tree_str = generate_tree(SEARCH_DIR)\n    # Find all Python files\n    py_files = []\n    for root, dirs, files in os.walk(SEARCH_DIR):",
+        "detail": "context_builder",
+        "documentation": {}
+    },
+    {
+        "label": "SEARCH_DIR",
+        "kind": 5,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "SEARCH_DIR = \".\"\nOUTPUT_MD = \"./full_code/full_code_context.md\"\n# List any folder names to skip during the search/tree generation\nSKIP_DIRS = [\n    \"projects\",\n    \"__pycache__\",\n    \"dist\",\n    \"full_code\",\n    \".git\",\n    \".vscode\",",
+        "detail": "context_builder",
+        "documentation": {}
+    },
+    {
+        "label": "OUTPUT_MD",
+        "kind": 5,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "OUTPUT_MD = \"./full_code/full_code_context.md\"\n# List any folder names to skip during the search/tree generation\nSKIP_DIRS = [\n    \"projects\",\n    \"__pycache__\",\n    \"dist\",\n    \"full_code\",\n    \".git\",\n    \".vscode\",\n    \"instructions\",",
+        "detail": "context_builder",
+        "documentation": {}
+    },
+    {
+        "label": "SKIP_DIRS",
+        "kind": 5,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "SKIP_DIRS = [\n    \"projects\",\n    \"__pycache__\",\n    \"dist\",\n    \"full_code\",\n    \".git\",\n    \".vscode\",\n    \"instructions\",\n]\n# List any file names to skip",
+        "detail": "context_builder",
+        "documentation": {}
+    },
+    {
+        "label": "SKIP_FILES",
+        "kind": 5,
+        "importPath": "context_builder",
+        "description": "context_builder",
+        "peekOfCode": "SKIP_FILES = [\"__init__.py\", \"context_builder.py\", \"README.md\", \"LICENSE\", \".gitignore\"]\ndef generate_tree(dir_path, prefix=\"\"):\n    \"\"\"\n    Generate an ASCII tree representation of the directory structure\n    under dir_path, skipping items in SKIP_DIRS and SKIP_FILES.\n    \"\"\"\n    entries = []\n    try:\n        entries = sorted(os.listdir(dir_path))\n    except PermissionError:",
+        "detail": "context_builder",
+        "documentation": {}
+    }
+]

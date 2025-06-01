@@ -1503,27 +1503,57 @@ inline auto louvainAffectedVerticesDeltaScreeningOmpW(vector<B>& vertices, vecto
  * @returns louvain result
  */
 template <class G, class K, class V, class W>
-inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
-  using  B = char;
-  size_t S = y.span();
-  double R = o.resolution;
-  double M = edgeWeight(y)/2;
-  vector<B> vertices(S), neighbors(S), communities(S);
+inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q_initial_python, const vector<W>& qvtot_initial_python, const vector<W>& qctot_initial_python, const LouvainOptions& o={}) {
+
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
-  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
-  int  r  = 0;
-  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+  louvainSetupInitialsW(qs, qvtots, qctots, q_initial_python, qvtot_initial_python, qctot_initial_python, o.repeat);
+  int r = 0;
+
+  auto fi = [&](auto& vcom_working, auto& vtot_working, auto& ctot_working) {
+    size_t previous_span = 0;
+    if (r < qs.size()) {
+        previous_span = qs[r].size();
+        vcom_working = std::move(qs[r]);
+    } else { vcom_working.clear(); previous_span = 0; }
+
+    if (r < qvtots.size()) {
+        vtot_working = std::move(qvtots[r]);
+    } else { vtot_working.clear(); }
+
+    if (r < qctots.size()) {
+        ctot_working = std::move(qctots[r]);
+    } else { ctot_working.clear(); }
+
+    size_t current_graph_span_y = y.span();
+
+    if (current_graph_span_y > previous_span) {
+        if (vcom_working.size() < current_graph_span_y) {
+            vcom_working.resize(current_graph_span_y);
+            for (size_t i = previous_span; i < current_graph_span_y; ++i) {
+                vcom_working[K(i)] = K(i);
+            }
+        }
+        if (vtot_working.size() < current_graph_span_y) {
+            vtot_working.resize(current_graph_span_y, W(0));
+        }
+        if (ctot_working.size() < current_graph_span_y) {
+            ctot_working.resize(current_graph_span_y, W(0));
+        }
+    }
+    r++;
+    louvainUpdateWeightsFromU(vtot_working, ctot_working, y, deletions, insertions, vcom_working);
   };
-  auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
-    louvainAffectedVerticesDeltaScreeningW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
-    copyValuesW(vaff, vertices);
+  using B = char;
+  size_t S_for_delta_screening = y.span();
+  double M_for_delta_screening = edgeWeight(y)/2;
+  vector<B> temp_vertices(S_for_delta_screening), temp_neighbors(S_for_delta_screening), temp_communities(S_for_delta_screening);
+
+  auto fm = [&](auto& vaff, auto& vcs_fm, auto& vcout_fm, const auto& vcom_current_fm, const auto& vtot_current_fm, const auto& ctot_current_fm) {
+    louvainAffectedVerticesDeltaScreeningW(temp_vertices, temp_neighbors, temp_communities, vcs_fm, vcout_fm, y, deletions, insertions, vcom_current_fm, vtot_current_fm, ctot_current_fm, M_for_delta_screening, o.resolution);
+    copyValuesW(vaff, temp_vertices); // Copy result into vaff
   };
-  auto fa = [&](auto u) { return vertices[u] == B(1); };
+  auto fa = [&](auto u) { return temp_vertices[u] == B(1); };
   return louvainInvoke<true>(y, o, fi, fm, fa);
 }
 
@@ -1542,27 +1572,54 @@ inline auto louvainDynamicDeltaScreening(const G& y, const vector<tuple<K, K, V>
  */
 template <class G, class K, class V, class W>
 inline auto louvainDynamicDeltaScreeningOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
-  using  B = char;
-  size_t S = y.span();
-  double R = o.resolution;
-  double M = edgeWeightOmp(y)/2;
-  int    T = omp_get_max_threads();
-  vector<B> vertices(S), neighbors(S), communities(S);
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
   louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
   int  r  = 0;
-  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+  auto fi = [&](auto& vcom_working, auto& vtot_working, auto& ctot_working) {
+    size_t previous_span = 0;
+    if (r < qs.size()) {
+        previous_span = qs[r].size();
+        vcom_working = std::move(qs[r]);
+    } else { vcom_working.clear(); previous_span = 0; }
+
+    if (r < qvtots.size()) {
+        vtot_working = std::move(qvtots[r]);
+    } else { vtot_working.clear(); }
+
+    if (r < qctots.size()) {
+        ctot_working = std::move(qctots[r]);
+    } else { ctot_working.clear(); }
+
+    size_t current_graph_span_y = y.span();
+
+    if (current_graph_span_y > previous_span) {
+        if (vcom_working.size() < current_graph_span_y) {
+            vcom_working.resize(current_graph_span_y);
+            for (size_t i = previous_span; i < current_graph_span_y; ++i) {
+                vcom_working[K(i)] = K(i);
+            }
+        }
+        if (vtot_working.size() < current_graph_span_y) {
+            vtot_working.resize(current_graph_span_y, W(0));
+        }
+        if (ctot_working.size() < current_graph_span_y) {
+            ctot_working.resize(current_graph_span_y, W(0));
+        }
+    }
+    r++;
+    louvainUpdateWeightsFromOmpU(vtot_working, ctot_working, y, deletions, insertions, vcom_working);
   };
-  auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
-    louvainAffectedVerticesDeltaScreeningOmpW(vertices, neighbors, communities, vcs, vcout, y, deletions, insertions, vcom, vtot, ctot, M, R);
-    copyValuesOmpW(vaff, vertices);
+  using B = char;
+  size_t S_for_delta_screening_omp = y.span();
+  double M_for_delta_screening_omp = edgeWeightOmp(y)/2;
+  vector<B> temp_vertices_omp(S_for_delta_screening_omp), temp_neighbors_omp(S_for_delta_screening_omp), temp_communities_omp(S_for_delta_screening_omp);
+  
+  auto fm = [&](auto& vaff, auto& vcs_fm_omp, auto& vcout_fm_omp, const auto& vcom_current_fm_omp, const auto& vtot_current_fm_omp, const auto& ctot_current_fm_omp) {
+    louvainAffectedVerticesDeltaScreeningOmpW(temp_vertices_omp, temp_neighbors_omp, temp_communities_omp, vcs_fm_omp, vcout_fm_omp, y, deletions, insertions, vcom_current_fm_omp, vtot_current_fm_omp, ctot_current_fm_omp, M_for_delta_screening_omp, o.resolution);
+    copyValuesOmpW(vaff, temp_vertices_omp); 
   };
-  auto fa = [&](auto u) { return vertices[u] == B(1); };
+  auto fa = [&](auto u) { return temp_vertices_omp[u] == B(1); };
   return louvainInvokeOmp<true>(y, o, fi, fm, fa);
 }
 #endif
@@ -1641,16 +1698,49 @@ inline void louvainAffectedVerticesFrontierOmpW(vector<B>& vertices, const G& y,
  * @returns louvain result
  */
 template <class G, class K, class V, class W>
-inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q_initial_python, const vector<W>& qvtot_initial_python, const vector<W>& qctot_initial_python, const LouvainOptions& o={}) {
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
-  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
-  int  r  = 0;
-  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromU(vtot, ctot, y, deletions, insertions, vcom);
+  louvainSetupInitialsW(qs, qvtots, qctots, q_initial_python, qvtot_initial_python, qctot_initial_python, o.repeat);
+  int r = 0;
+
+  auto fi = [&](auto& vcom_working, auto& vtot_working, auto& ctot_working) {
+    size_t previous_span = 0;
+    if (r < qs.size()) {
+        previous_span = qs[r].size();
+        vcom_working = std::move(qs[r]);
+    } else {
+      vcom_working.clear(); previous_span = 0;
+    }
+
+    if (r < qvtots.size()) {
+        vtot_working = std::move(qvtots[r]);
+    } else {
+      vtot_working.clear();
+    }
+
+    if (r < qctots.size()) {
+        ctot_working = std::move(qctots[r]);
+    } else {
+      ctot_working.clear();
+    }
+    size_t current_graph_span_y = y.span();
+    if (current_graph_span_y > previous_span) {
+        if (vcom_working.size() < current_graph_span_y) {
+            vcom_working.resize(current_graph_span_y);
+            for (size_t i = previous_span; i < current_graph_span_y; ++i) {
+                vcom_working[K(i)] = K(i);
+            }
+        }
+        if (vtot_working.size() < current_graph_span_y) {
+            vtot_working.resize(current_graph_span_y, W(0)); 
+        }
+        if (ctot_working.size() < current_graph_span_y) {
+            ctot_working.resize(current_graph_span_y, W(0));
+        }
+    }
+    r++;
+    louvainUpdateWeightsFromU(vtot_working, ctot_working, y, deletions, insertions, vcom_working);
   };
   auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
     louvainAffectedVerticesFrontierW(vaff, y, deletions, insertions, vcom);
@@ -1673,19 +1763,49 @@ inline auto louvainDynamicFrontier(const G& y, const vector<tuple<K, K, V>>& del
  * @returns louvain result
  */
 template <class G, class K, class V, class W>
-inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q, const vector<W>& qvtot, const vector<W>& qctot, const LouvainOptions& o={}) {
+inline auto louvainDynamicFrontierOmp(const G& y, const vector<tuple<K, K, V>>& deletions, const vector<tuple<K, K, V>>& insertions, const vector<K>& q_initial_python, const vector<W>& qvtot_initial_python, const vector<W>& qctot_initial_python, const LouvainOptions& o={}) {
+
   vector2d<K> qs;
   vector2d<W> qvtots, qctots;
-  louvainSetupInitialsW(qs, qvtots, qctots, q, qvtot, qctot, o.repeat);
-  int  r  = 0;
-  auto fi = [&](auto& vcom, auto& vtot, auto& ctot) {
-    vcom = move(qs[r]);
-    vtot = move(qvtots[r]);
-    ctot = move(qctots[r]); ++r;
-    louvainUpdateWeightsFromOmpU(vtot, ctot, y, deletions, insertions, vcom);
+  louvainSetupInitialsW(qs, qvtots, qctots, q_initial_python, qvtot_initial_python, qctot_initial_python, o.repeat);
+  int r = 0;
+
+  auto fi = [&](auto& vcom_working, auto& vtot_working, auto& ctot_working) {
+    size_t previous_span = 0;
+    if (r < qs.size()) {
+        previous_span = qs[r].size();
+        vcom_working = std::move(qs[r]);
+    } else { vcom_working.clear(); previous_span = 0; }
+
+    if (r < qvtots.size()) {
+        vtot_working = std::move(qvtots[r]);
+    } else { vtot_working.clear(); }
+
+    if (r < qctots.size()) {
+        ctot_working = std::move(qctots[r]);
+    } else { ctot_working.clear(); }
+
+    size_t current_graph_span_y = y.span();
+
+    if (current_graph_span_y > previous_span) {
+        if (vcom_working.size() < current_graph_span_y) {
+            vcom_working.resize(current_graph_span_y);
+            for (size_t i = previous_span; i < current_graph_span_y; ++i) {
+                vcom_working[K(i)] = K(i);
+            }
+        }
+        if (vtot_working.size() < current_graph_span_y) {
+            vtot_working.resize(current_graph_span_y, W(0));
+        }
+        if (ctot_working.size() < current_graph_span_y) {
+            ctot_working.resize(current_graph_span_y, W(0));
+        }
+    }
+    r++;
+    louvainUpdateWeightsFromOmpU(vtot_working, ctot_working, y, deletions, insertions, vcom_working); // OMP version
   };
-  auto fm = [&](auto& vaff, auto& vcs, auto& vcout, const auto& vcom, const auto& vtot, const auto& ctot) {
-    louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom);
+  auto fm = [&](auto& vaff, auto& vcs_unused_per_thread, auto& vcout_unused_per_thread, const auto& vcom_current, const auto& vtot_current, const auto& ctot_current) {
+    louvainAffectedVerticesFrontierOmpW(vaff, y, deletions, insertions, vcom_current);
   };
   auto fa = [ ](auto u) { return true; };
   return louvainInvokeOmp<true>(y, o, fi, fm, fa);
